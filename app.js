@@ -1,40 +1,153 @@
 (() => {
-  "use strict";
-  const $ = (s, root=document) => root.querySelector(s);
-  const $$ = (s, root=document) => [...root.querySelectorAll(s)];
-  const money = n => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0}).format(Number.isFinite(n)?n:0);
-  const num = id => Math.max(0, Number($("#"+id)?.value) || 0);
-  const fmt = n => new Intl.NumberFormat("en-IN",{maximumFractionDigits:2}).format(Number.isFinite(n)?n:0);
-  const escapeHtml = s => String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const configs = {
-    emi:{title:"EMI calculator",subtitle:"Estimate your monthly loan payment.",label:"Monthly EMI",note:"Uses the standard reducing-balance EMI formula. Lender fees, insurance, rate changes and rounding may alter the final amount.",fields:[["principal","Loan amount (₹)",2000000,1,100000000,1000],["rate","Annual interest rate (%)",9,0,40,.1],["months","Loan tenure (months)",120,1,600,1]],calc:v=>{const r=v.rate/1200,n=v.months,p=v.principal;const emi=r===0?p/n:p*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1);return {value:emi,rows:[["Principal",money(p)],["Total interest",money(emi*n-p)],["Total payment",money(emi*n)]]};}},
-    sip:{title:"SIP calculator",subtitle:"Explore a possible future value for monthly investments.",label:"Estimated future value",note:"Illustrative compounding estimate only. Market-linked returns are not guaranteed; actual SIP returns vary.",fields:[["monthly","Monthly investment (₹)",5000,100,10000000,100],["rate","Assumed annual return (%)",12,0,40,.1],["years","Investment period (years)",10,1,50,1]],calc:v=>{const n=v.years*12,r=v.rate/1200,p=v.monthly;const total=p*n;const future=r===0?total:p*((Math.pow(1+r,n)-1)/r)*(1+r);return {value:future,rows:[["Invested amount",money(total)],["Estimated gains",money(future-total)],["Months invested",fmt(n)]]};}},
-    fd:{title:"FD / RD calculator",subtitle:"Compare a lump-sum fixed deposit with a monthly recurring deposit.",label:"Estimated maturity value",note:"Uses monthly compounding for FD and a monthly deposit annuity approximation for RD. Bank conventions, payout frequency, tax and premature withdrawal rules vary.",fields:[["principal","Initial deposit / monthly RD (₹)",100000,100,100000000,100],["rate","Annual interest rate (%)",7,0,20,.1],["years","Tenure (years)",5,1,30,1],["kind","Deposit type","fd"]],calc:v=>{const months=v.years*12,rm=v.rate/1200;let total,value;if(v.kind==="fd"){total=v.principal;value=total*Math.pow(1+rm,months);}else{total=v.principal*months;value=rm===0?total:v.principal*((Math.pow(1+rm,months)-1)/rm)*(1+rm);}return {value,rows:[["Deposited amount",money(total)],["Estimated interest",money(value-total)],["Tenure",months+" months"]]};}},
-    budget:{title:"Salary budget planner",subtitle:"Build a simple monthly split from your take-home pay.",label:"Amount left after planned expenses",note:"This is a planning template, not a rule. Adjust the amounts to match your real obligations and priorities.",fields:[["income","Monthly take-home salary (₹)",50000,0,100000000,500],["needs","Needs / essentials (₹)",25000,0,100000000,500],["wants","Wants / lifestyle (₹)",10000,0,100000000,500]],calc:v=>{const left=v.income-v.needs-v.wants;return {value:left,rows:[["Needs",money(v.needs)],["Wants",money(v.wants)],["Savings rate",v.income?fmt(Math.max(0,left)/v.income*100)+"%":"—"],["Allocation",v.income?fmt((v.needs+v.wants)/v.income*100)+"%":"—"]]};}},
-    gst:{title:"GST calculator",subtitle:"Add GST to a base price or extract GST from an inclusive price.",label:"Final amount",note:"Select the GST rate applicable to your product or service. This tool does not determine the legally applicable rate or tax treatment.",fields:[["amount","Amount (₹)",1000,0,100000000,10],["rate","GST rate (%)",18,0,100,.5],["mode","Calculation","add"]],calc:v=>{const tax=v.mode==="add"?v.amount*v.rate/100:v.amount*v.rate/(100+v.rate);const base=v.mode==="add"?v.amount:v.amount-tax;const final=v.mode==="add"?v.amount+tax:v.amount;return {value:final,rows:[["Taxable value",money(base)],["GST amount",money(tax)],["CGST + SGST (if intra-state)",money(tax/2)]]};}},
-    discount:{title:"Discount calculator",subtitle:"Find the sale price and the amount saved.",label:"Price after discount",note:"The result excludes delivery fees, taxes or other charges that may apply at checkout.",fields:[["price","Original price (₹)",2499,0,100000000,10],["discount","Discount (%)",20,0,100,.5]],calc:v=>{const saved=v.price*v.discount/100;return {value:v.price-saved,rows:[["You save",money(saved)],["Discount",fmt(v.discount)+"%"],["Original price",money(v.price)]]};}},
-    percentage:{title:"Percentage calculator",subtitle:"Find what one number is as a percentage of another.",label:"Percentage result",note:"For percentage change, enter the starting value as A and the ending value as B.",fields:[["part","Value A",25,0,100000000,.1],["whole","Value B",200,0,100000000,.1]],calc:v=>{const pct=v.whole===0?0:v.part/v.whole*100;return {value:pct,display:fmt(pct)+"%",rows:[["A as a share of B",fmt(pct)+"%"],["Difference (B − A)",fmt(v.whole-v.part)]]};}},
-    age:{title:"Age calculator",subtitle:"Calculate completed years, months and days from a birth date.",label:"Your age",note:"Age is calculated using your device's local calendar date.",fields:[["birth","Date of birth","2000-01-01"]],calc:v=>{const b=new Date(v.birth+"T00:00:00"),now=new Date();if(!v.birth||Number.isNaN(b.getTime())||b>now)return {value:0,display:"Check date",rows:[["Status","Enter a valid past date"]],error:true};let y=now.getFullYear()-b.getFullYear(),m=now.getMonth()-b.getMonth(),d=now.getDate()-b.getDate();if(d<0){m--;d+=new Date(now.getFullYear(),now.getMonth(),0).getDate();}if(m<0){y--;m+=12;}return {value:y,display:`${y} years`,rows:[["Months",fmt(m)],["Days",fmt(d)],["Date of birth",b.toLocaleDateString("en-IN")]]};}}
+  'use strict';
+  const $ = (selector, root = document) => root.querySelector(selector);
+  const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+
+  // Small-screen navigation
+  const menuToggle = $('#menuToggle');
+  const nav = $('.desktop-nav');
+  menuToggle?.addEventListener('click', () => {
+    const open = nav.classList.toggle('open');
+    menuToggle.setAttribute('aria-expanded', String(open));
+    menuToggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  });
+  $$('.desktop-nav a').forEach(link => link.addEventListener('click', () => {
+    nav.classList.remove('open'); menuToggle?.setAttribute('aria-expanded', 'false');
+  }));
+
+  // Gentle reveal, with a no-JS / reduced-motion friendly fallback.
+  if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const observer = new IntersectionObserver(entries => entries.forEach(entry => {
+      if (entry.isIntersecting) { entry.target.classList.add('is-visible'); observer.unobserve(entry.target); }
+    }), { threshold: 0.12 });
+    $$('.reveal').forEach(el => observer.observe(el));
+  } else $$('.reveal').forEach(el => el.classList.add('is-visible'));
+
+  // Chart selector + market presets.
+  const chart = $('#mainChart');
+  const symbolSelect = $('#symbolSelect');
+  const chartTitle = $('#chartTitle');
+  const marketPresets = {
+    india: [['NSE:NIFTY','NIFTY 50'],['BSE:SENSEX','SENSEX'],['NSE:RELIANCE','RELIANCE'],['NSE:HDFCBANK','HDFC BANK'],['NSE:TCS','TCS'],['NSE:INFY','INFOSYS']],
+    global: [['NASDAQ:AAPL','APPLE'],['NASDAQ:NVDA','NVIDIA'],['NASDAQ:MSFT','MICROSOFT'],['NASDAQ:TSLA','TESLA'],['NYSE:KO','COCA-COLA']],
+    crypto: [['BINANCE:BTCUSDT','BITCOIN'],['BINANCE:ETHUSDT','ETHEREUM'],['BINANCE:SOLUSDT','SOLANA'],['BINANCE:BNBUSDT','BNB'],['BINANCE:XRPUSDT','XRP']]
   };
-  let current="emi", lastResult="";
-  function fieldMarkup(f){const [id,label,value,min,max,step]=f;if(id==="kind")return `<div class="field"><label for="${id}">${label}</label><select id="${id}"><option value="fd">Fixed deposit (lump sum)</option><option value="rd">Recurring deposit (monthly)</option></select></div>`;if(id==="mode")return `<div class="field"><label for="${id}">${label}</label><select id="${id}"><option value="add">Add GST to base amount</option><option value="remove">Extract GST from inclusive amount</option></select></div>`;if(id==="birth")return `<div class="field full"><label for="${id}">${label}</label><input id="${id}" type="date" max="${new Date().toISOString().slice(0,10)}" value="${value}"></div>`;return `<div class="field"><label for="${id}">${label}</label><div class="field-control"><input id="${id}" type="number" inputmode="decimal" min="${min}" max="${max}" step="${step}" value="${value}" aria-describedby="${id}-hint"><input id="${id}-range" type="range" min="${min}" max="${max}" step="${step}" value="${value}" aria-label="Adjust ${label}"><span class="field-hint" id="${id}-hint">Use the slider or type an exact amount</span></div></div>`;}
-  function renderCalc(key){current=key;const c=configs[key];$("#calc-title").textContent=c.title;$("#calc-subtitle").textContent=c.subtitle;$("#calc-inputs").innerHTML=c.fields.map(fieldMarkup).join("");$("#calculator").hidden=false;$("#tools").hidden=true;$("#how").hidden=true;$("#about").hidden=true;$("#calculator").scrollIntoView({behavior:"smooth",block:"start"});$$('#calc-inputs input[type="number"]').forEach(el=>{const slider=$("#"+el.id+"-range");el.addEventListener("input",()=>{if(slider)slider.value=el.value;update();});if(slider)slider.addEventListener("input",()=>{el.value=slider.value;update();});});$$('#calc-inputs select,#calc-inputs input[type="date"]').forEach(el=>el.addEventListener("input",update));update();}
-  function update(){const c=configs[current],v={};for(const f of c.fields){const el=$("#"+f[0]);v[f[0]]=f[0]==="kind"||f[0]==="mode"||f[0]==="birth"?el.value:Math.max(0,Number(el.value)||0);}const out=c.calc(v);$("#result-label").textContent=c.label;$("#result-value").textContent=out.display||money(out.value);$("#result-breakdown").innerHTML=out.rows.map(r=>`<div class="break-row"><span>${escapeHtml(r[0])}</span><b>${escapeHtml(r[1])}</b></div>`).join("");$("#result-note").textContent=c.note;lastResult=`${c.title}\n${c.label}: ${out.display||money(out.value)}\n`+out.rows.map(r=>r[0]+": "+r[1]).join("\n");}
-  $$(".tool-card").forEach(card=>card.addEventListener("click",()=>renderCalc(card.dataset.tool)));
-  $("#back-to-tools")?.addEventListener("click",()=>{$("#calculator").hidden=true;$("#tools").hidden=false;$("#how").hidden=false;$("#about").hidden=false;$("#tools").scrollIntoView({behavior:"smooth"});});
-  $("#copy-result")?.addEventListener("click",async()=>{try{await navigator.clipboard.writeText(lastResult);$("#copy-result").textContent="Copied ✓";setTimeout(()=>$("#copy-result").textContent="Copy result ↗",1500);}catch{const t=document.createElement("textarea");t.value=lastResult;document.body.append(t);t.select();document.execCommand("copy");t.remove();$("#copy-result").textContent="Copied ✓";}});
-  $$(".category").forEach(btn=>btn.addEventListener("click",()=>{$$(".category").forEach(b=>b.classList.remove("active"));btn.classList.add("active");filterTools();}));
-  $("#tool-search")?.addEventListener("input",filterTools);
-  function filterTools(){const cat=$(".category.active")?.dataset.category||"all",q=($("#tool-search")?.value||"").trim().toLowerCase();let shown=0;$$(".tool-card").forEach(card=>{const okCat=cat==="all"||card.dataset.category===cat;const okText=card.innerText.toLowerCase().includes(q);card.hidden=!(okCat&&okText);if(!card.hidden)shown++;});$("#empty-state").hidden=shown!==0;}
-  $("#year").textContent=new Date().getFullYear();
-  // Monetization configuration. Keep blank until your own accounts are approved.
-  // Add only publisher IDs and affiliate URLs issued to you by the relevant programmes.
-  const monetization = {
-    adsenseClient: "", // e.g. ca-pub-1234567890123456 — your own approved ID only
-    adSlots: { homeTop: "", inArticle: "", footer: "" },
-    affiliatePartners: [] // e.g. { name: "Partner", url: "YOUR_APPROVED_TRACKING_URL", disclosure: "Affiliate link" }
+  function setSymbol(symbol, title) {
+    if (!chart) return;
+    chart.setAttribute('symbol', symbol);
+    if (chartTitle) chartTitle.innerHTML = `${title} <span>· ${symbol.split(':')[0]}</span>`;
+    if (symbolSelect && [...symbolSelect.options].some(o => o.value === symbol)) symbolSelect.value = symbol;
+  }
+  symbolSelect?.addEventListener('change', () => {
+    const option = symbolSelect.selectedOptions[0]; setSymbol(symbolSelect.value, option.textContent);
+  });
+  $$('.market-tab').forEach(tab => tab.addEventListener('click', () => {
+    $$('.market-tab').forEach(t => { t.classList.toggle('active', t === tab); t.setAttribute('aria-selected', String(t === tab)); });
+    const preset = marketPresets[tab.dataset.market];
+    symbolSelect.innerHTML = preset.map(([symbol, name]) => `<option value="${symbol}">${name}</option>`).join('');
+    setSymbol(preset[0][0], preset[0][1]);
+  }));
+  $$('[data-coin]').forEach(button => button.addEventListener('click', () => {
+    setSymbol(button.dataset.coin, button.dataset.coin.split(':')[1].replace('USDT',''));
+    $('#markets')?.scrollIntoView({ behavior: 'smooth' });
+    $$('.market-tab').forEach(t => { t.classList.toggle('active', t.dataset.market === 'crypto'); t.setAttribute('aria-selected', String(t.dataset.market === 'crypto')); });
+    const preset = marketPresets.crypto;
+    symbolSelect.innerHTML = preset.map(([symbol, name]) => `<option value="${symbol}">${name}</option>`).join('');
+    symbolSelect.value = button.dataset.coin;
+  }));
+
+  // Switch between screener and heatmap without reloading the entire page.
+  $$('.explorer-tab').forEach(tab => tab.addEventListener('click', () => {
+    $$('.explorer-tab').forEach(t => t.classList.toggle('active', t === tab));
+    const frame = $('#stockExplorerFrame');
+    if (!frame) return;
+    frame.innerHTML = tab.dataset.explorer === 'heatmap'
+      ? '<div class="explorer-widget"><tv-heatmap heatmap-type="stock" data-source="SPX500" grouping="sector" block-size="market_cap_basic" block-color="change" color-theme="light" style="display:block;width:100%;height:580px"></tv-heatmap></div>'
+      : '<div class="explorer-widget"><tv-screener market="india" screener="stock" display="table" color-theme="light" height="580" width="100%" style="display:block;width:100%;height:580px"></tv-screener></div>';
+  }));
+
+  // Personal portfolio: explicit manual records only; browser-local storage.
+  const STORAGE_KEY = 'rupeepilot.portfolio.v2';
+  let assets = [];
+  try { assets = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); if (!Array.isArray(assets)) assets = []; } catch { assets = []; }
+  const money = value => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(value || 0);
+  const dialog = $('#assetDialog');
+  function saveAssets() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(assets)); } catch { /* private browsing may block storage */ } }
+  function renderAssets() {
+    const invested = assets.reduce((sum, asset) => sum + asset.units * asset.price, 0);
+    $('#totalInvested').textContent = money(invested);
+    $('#assetCount').textContent = String(assets.length);
+    $('#watchCount').textContent = String(assets.length);
+    $('#portfolioEmpty').hidden = assets.length > 0;
+    $('#portfolioTableWrap').hidden = assets.length === 0;
+    $('#portfolioRows').innerHTML = assets.map((asset, index) => `<tr><td><strong>${escapeHtml(asset.name)}</strong></td><td>${Number(asset.units).toLocaleString('en-IN')}</td><td>${money(asset.price)}</td><td>${money(asset.units * asset.price)}</td><td><button class="remove-asset" data-remove="${index}" aria-label="Remove ${escapeHtml(asset.name)}">×</button></td></tr>`).join('');
+  }
+  function escapeHtml(value) { return String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])); }
+  function openDialog() { if (dialog?.showModal) dialog.showModal(); else alert('Your browser does not support this form.'); }
+  $('#addAssetBtn')?.addEventListener('click', openDialog);
+  $('#emptyAddBtn')?.addEventListener('click', openDialog);
+  $('#portfolioRows')?.addEventListener('click', event => {
+    const button = event.target.closest('[data-remove]'); if (!button) return;
+    assets.splice(Number(button.dataset.remove), 1); saveAssets(); renderAssets();
+  });
+  $('#assetForm')?.addEventListener('submit', event => {
+    event.preventDefault();
+    const name = $('#assetName').value.trim();
+    const units = Number($('#assetUnits').value);
+    const price = Number($('#assetPrice').value);
+    if (!name || !Number.isFinite(units) || units <= 0 || !Number.isFinite(price) || price <= 0) return;
+    assets.push({ name, units, price, addedAt: Date.now() }); saveAssets(); renderAssets();
+    event.currentTarget.reset(); dialog.close();
+  });
+  renderAssets();
+
+  // Financial calculators.
+  const fmt = value => '₹' + Math.round(value).toLocaleString('en-IN');
+  const tools = {
+    sip: {
+      title: '01 — SIP PLANNER', heading: 'Little by little adds up.',
+      fields: [['Monthly investment','sipAmount',500,100000,500,5000,'₹'],['Expected annual return','sipRate',1,20,.5,12,'%'],['Time period','sipYears',1,40,1,10,' years']],
+      calculate: v => { const n = v.sipYears * 12, r = v.sipRate / 1200, invested = v.sipAmount * n; const total = r ? v.sipAmount * ((Math.pow(1+r,n)-1)/r) * (1+r) : invested; return { total, invested, growth: total-invested, text: `If you invest ${fmt(v.sipAmount)} every month for ${v.sipYears} years at an assumed ${v.sipRate}% annual return.` }; }
+    },
+    emi: {
+      title: '02 — LOAN EMI', heading: 'Know the monthly commitment.',
+      fields: [['Loan amount','emiAmount',50000,10000000,50000,2500000,'₹'],['Annual interest rate','emiRate',1,24,.25,9,'%'],['Loan tenure','emiYears',1,30,1,5,' years']],
+      calculate: v => { const n=v.emiYears*12,r=v.emiRate/1200,emi=r? v.emiAmount*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1):v.emiAmount/n, total=emi*n; return {total,invested:v.emiAmount,growth:total-v.emiAmount,text:`Estimated monthly EMI: ${fmt(emi)} for ${v.emiYears} years. Total repayment includes interest.`}; }
+    },
+    fd: {
+      title: '03 — FIXED DEPOSIT', heading: 'Let time do its thing.',
+      fields: [['Deposit amount','fdAmount',1000,10000000,1000,100000,'%'],['Annual interest rate','fdRate',1,12,.25,7,'%'],['Time period','fdYears',1,15,1,5,' years']],
+      calculate: v => { const total=v.fdAmount*Math.pow(1+v.fdRate/400,v.fdYears*4); return {total,invested:v.fdAmount,growth:total-v.fdAmount,text:`Illustrative quarterly-compounding estimate for ${v.fdYears} years at ${v.fdRate}% annual interest, before tax.`}; }
+    },
+    budget: {
+      title: '04 — BUDGET SPLIT', heading: 'Give every rupee a role.',
+      fields: [['Monthly take-home income','budgetAmount',5000,500000,1000,50000,'₹'],['Needs allocation','budgetNeeds',20,80,5,50,'%'],['Wants allocation','budgetWants',0,50,5,30,'%']],
+      calculate: v => { const wants=Math.min(v.budgetWants,100-v.budgetNeeds), savings=100-v.budgetNeeds-wants; return {total:v.budgetAmount,invested:v.budgetAmount*v.budgetNeeds/100,growth:v.budgetAmount*savings/100,text:`Needs ${v.budgetNeeds}% · Wants ${wants}% · Savings ${savings}%. Adjust the split to fit your actual life.`}; }
+    }
   };
-  // No third-party monetization scripts load while these values are blank.
-  // Never encourage ad clicks, buy bot traffic, or publish unverified financial claims.
-  void monetization;
+  let activeTool = 'sip';
+  const values = {};
+  function buildTool(key) {
+    activeTool = key; const config=tools[key];
+    config.fields.forEach(field => values[field[1]]=field[5]);
+    $('#toolInputs').innerHTML = `<div class="tool-intro"><span class="panel-label">${config.title}</span><h3>${config.heading}</h3><p>${key==='sip'?'Estimate what regular investing could grow into. Returns are assumptions, not promises.':key==='emi'?'Understand the monthly cost and total repayment of a loan before you commit.':key==='fd'?'Explore an illustrative fixed-deposit maturity value. Actual bank terms and tax treatment vary.':'A simple starting point for dividing monthly income into needs, wants and savings.'}</p></div>` + config.fields.map(([label,id,min,max,step,value,suffix]) => `<label class="field-label">${label.toUpperCase()} <span id="${id}Label">${suffix==='%'?value+'%':suffix===' years'?value+' years':fmt(value)}</span><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${value}"></label>`).join('');
+    config.fields.forEach(([label,id,min,max,step,value,suffix]) => $(`#${id}`).addEventListener('input', event => {
+      const number=Number(event.target.value); values[id]=number; $(`#${id}Label`).textContent=suffix==='%'?number+'%':suffix===' years'?number+' years':fmt(number); updateTool();
+    }));
+    updateTool();
+  }
+  function updateTool() {
+    const result=tools[activeTool].calculate(values);
+    $('#toolResult').textContent=fmt(result.total);
+    $('#toolResultText').textContent=result.text;
+    $('#resultInvested').textContent=fmt(result.invested);
+    $('#resultGrowth').textContent=fmt(result.growth);
+    const denom=Math.max(1,Math.abs(result.total));
+    $('#investedBar').style.width=Math.max(0,Math.min(100,result.invested/denom*100))+'%';
+    $('#growthBar').style.width=Math.max(0,Math.min(100,result.growth/denom*100))+'%';
+  }
+  $$('.tool-tab').forEach(tab => tab.addEventListener('click', () => {
+    $$('.tool-tab').forEach(t=>t.classList.toggle('active',t===tab)); buildTool(tab.dataset.tool);
+  }));
+  buildTool('sip');
 })();
