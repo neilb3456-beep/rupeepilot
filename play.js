@@ -3,7 +3,7 @@
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const money=n=>'₹'+Math.round(n).toLocaleString('en-IN');
-const fields=['#rpCapital','#rpRisk','#rpEntry','#rpStop'].map($);
+const fields=['#rpCapital','#rpRisk','#rpEntry','#rpStop'].map(s=>$ (s));
 const [capital,risk,entry,stop]=fields;
 const shares=$('#rpShares'),loss=$('#rpLoss'),value=$('#rpValue'),explain=$('#rpRiskExplain');
 function calculate(){
