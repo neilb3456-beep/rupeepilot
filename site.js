@@ -14,4 +14,17 @@ if('IntersectionObserver'in window){
  sections.forEach(s=>navObserver.observe(s));
  if(!reduce){const revealObserver=new IntersectionObserver(entries=>entries.forEach(entry=>{if(!entry.isIntersecting)return;entry.target.classList.add('is-visible');revealObserver.unobserve(entry.target);}),{threshold:.08,rootMargin:'0px 0px -30px 0px'});$$('.rs-reveal,.rs-animate-line').forEach(el=>revealObserver.observe(el));}
 }else $$('.rs-reveal,.rs-animate-line').forEach(el=>el.classList.add('is-visible'));
+
+if(!reduce && matchMedia('(pointer:fine)').matches){
+ const depthCards=$('.story-card,.play-card,.rs-chart-card,.rs-insight-card');
+ depthCards.forEach(card=>{
+  card.addEventListener('pointermove',event=>{
+   const box=card.getBoundingClientRect(),x=(event.clientX-box.left)/box.width,y=(event.clientY-box.top)/box.height;
+   card.style.setProperty('--tilt-x',((.5-y)*2.2).toFixed(2)+'deg');
+   card.style.setProperty('--tilt-y',((x-.5)*2.8).toFixed(2)+'deg');
+   card.classList.add('depth-card');
+  });
+  card.addEventListener('pointerleave',()=>{card.style.removeProperty('--tilt-x');card.style.removeProperty('--tilt-y');card.classList.remove('depth-card');});
+ });
+}
 })();
