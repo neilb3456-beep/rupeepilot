@@ -169,3 +169,6 @@ p{font-family:var(--body)!important;font-size:16px;line-height:1.78;letter-spaci
  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
  .motion-reveal,.reveal,.rs-reveal{opacity:1!important;transform:none!important;filter:none!important}
 }
+
+/* Keep scroll rendering stable: no pointer-driven 3D tilt on the hero artwork. */
+.hero-art{transform:none!important;transition:none!important;will-change:auto!important}
