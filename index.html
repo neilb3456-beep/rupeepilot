@@ -16,6 +16,7 @@
   <script defer src="app.js"></script>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
   <header class="topbar">
     <a class="brand" href="#home" aria-label="RupeePilot home"><span class="brand-mark">₹</span><span>rupee<span class="brand-light">pilot</span><small>CLARITY FOR EVERY RUPEE</small></span></a>
@@ -25,14 +26,15 @@
     <a class="top-cta" href="#tools">Explore tools <span>↗</span></a>
   </header>
 
-  <main id="home">
+  <main id="main-content">
+    <span id="home" aria-hidden="true"></span>
     <section class="hero shell">
       <div class="hero-copy">
-        <div class="eyebrow"><span class="pulse"></span> BUILT FOR EVERYDAY INDIA</div>
+        <div class="eyebrow"><span class="pulse"></span> A CLEARER WAY TO HANDLE MONEY</div>
         <h1>Make your next<br><em>money move</em> clearer.</h1>
-        <p class="hero-lede">Practical calculators for loans, savings, taxes and everyday decisions. Free to use, quick to understand, and private by design.</p>
+        <p class="hero-lede">Thoughtful tools for the money questions that matter. Explore loans, savings, taxes and everyday decisions — with clear estimates and no account to create.</p>
         <div class="hero-actions"><a class="button button-primary" href="#tools">Explore calculators <span>→</span></a><a class="text-link" href="#how">See how it works <span>↗</span></a></div>
-        <div class="trust-row"><span>✓ No sign-up</span><span>✓ Calculations stay in your browser</span><span>✓ INR-first</span></div>
+        <div class="trust-row"><span>✓ Always free to use</span><span>✓ Your inputs stay in your browser</span><span>✓ Made for India</span></div>
       </div>
       <div class="hero-panel">
         <div class="panel-top"><span>QUICK ESTIMATE</span><span class="live-dot">● LIVE</span></div>
@@ -56,7 +58,7 @@
 
     <section class="tools-section shell" id="tools">
       <div class="section-heading">
-        <div><div class="eyebrow">THE TOOLKIT</div><h2>Small tools. <em>Clearer decisions.</em></h2><p>Choose a calculator and change the numbers to see what moves.</p></div>
+        <div><div class="eyebrow">THE RUPEEPILOT TOOLKIT</div><h2>Small tools. <em>Clearer decisions.</em></h2><p>Choose a calculator and change the numbers to see what moves.</p></div>
         <div class="search-wrap"><span>⌕</span><input id="tool-search" type="search" placeholder="Find a calculator..." aria-label="Search calculators"></div>
       </div>
       <div class="tool-layout">
