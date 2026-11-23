@@ -1,4 +1,4 @@
-/* RupeePilot Play Lab: tactile interactions and educational calculators */
+/* RupeePilot risk and valuation tools */
 (()=>{'use strict';
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -29,11 +29,4 @@ $$('.term-tab').forEach(btn=>btn.addEventListener('click',()=>{
  const panel=$('.term-definition');panel?.classList.remove('term-pop');void panel?.offsetWidth;panel?.classList.add('term-pop');
  symbol.textContent=item.symbol;title.textContent=item.title;desc.textContent=item.text;caution.textContent=item.caution;
 }));
-if(reduced)return;
-if(window.matchMedia('(pointer:fine)').matches){
- $$('.play-card').forEach(card=>{
-  card.addEventListener('pointermove',e=>{const r=card.getBoundingClientRect(),dx=(e.clientX-r.left)/r.width-.5,dy=(e.clientY-r.top)/r.height-.5;card.style.setProperty('--play-rx',(-dy*3)+'deg');card.style.setProperty('--play-ry',(dx*3)+'deg');});
-  card.addEventListener('pointerleave',()=>{card.style.setProperty('--play-rx','0deg');card.style.setProperty('--play-ry','0deg');});
- });
-}
 })();
