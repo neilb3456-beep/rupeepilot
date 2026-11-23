@@ -56,3 +56,5 @@ body{overflow-x:hidden}
 @keyframes factor-pop{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
 @media(max-width:700px){.motion-reveal{transform:translate3d(0,28px,0);filter:blur(3px)}.hero-art{animation:hero-art-arrive 1.2s var(--motion-ease) both .1s}}
 @media(prefers-reduced-motion:reduce){.motion-reveal,.reveal{opacity:1!important;transform:none!important;filter:none!important;transition:none!important}.hero-copy .eyebrow,.hero-copy h1,.hero-copy .hero-bottom,.hero-art,.hero-meta{animation:none!important}.art-sun,.art-ring,.orbit,.floating-card,.hero-stamp,.ticker-track i,.coin-orb,.heat-squares i,.graphic-bars i{animation:none!important}}
+
+.hero-art{transform:perspective(1100px) rotateX(var(--tilt-x,0deg)) rotateY(var(--tilt-y,0deg));transition:transform .55s cubic-bezier(.16,1,.3,1)}
