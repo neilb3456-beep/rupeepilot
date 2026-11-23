@@ -212,6 +212,10 @@ function renderSeries() {
   showSource('source-secondary', state.compare);
   updateReadout();
   drawChart();
+  if (!reduceMotion.matches && chart.animate) {
+    for (const animation of chart.getAnimations()) animation.cancel();
+    chart.animate([{ opacity: 0.48 }, { opacity: 1 }], { duration: 300, easing: 'ease-out' });
+  }
 }
 
 function updateReadout() {
@@ -360,17 +364,20 @@ chart.addEventListener('keydown', (event) => {
 new ResizeObserver(drawChart).observe(chart);
 document.fonts.ready.then(drawChart);
 
-for (const button of filters) {
-  button.addEventListener('click', () => {
-    state.group = button.dataset.filter;
-    search.value = '';
-    const candidates = assets.filter((asset) => state.group === 'Saved' ? state.saved.has(asset.id) : state.group === asset.group);
-    if (candidates.length && !candidates.includes(state.current)) activate(candidates[0]);
-    else {
-      updatePressedControls();
-      renderList();
-    }
-  });
+function chooseGroup(group) {
+  state.group = group;
+  search.value = '';
+  const candidates = assets.filter((asset) => group === 'Saved' ? state.saved.has(asset.id) : group === asset.group);
+  if (candidates.length && !candidates.includes(state.current)) activate(candidates[0]);
+  else {
+    updatePressedControls();
+    renderList();
+  }
+}
+
+for (const button of filters) button.addEventListener('click', () => chooseGroup(button.dataset.filter));
+for (const link of document.querySelectorAll('[data-watchlist]')) {
+  link.addEventListener('click', () => chooseGroup('Saved'));
 }
 
 for (const button of ranges) {
@@ -433,37 +440,84 @@ const reveal = new IntersectionObserver((entries, observer) => {
 for (const section of document.querySelectorAll('.reveal')) reveal.observe(section);
 
 const hero = document.querySelector('.hero');
+const masthead = document.querySelector('.masthead');
+const menu = select('mobile-menu');
+const menuButton = document.querySelector('.menu-toggle');
+if (typeof menu.showModal === 'function') {
+  masthead.classList.add('has-dialog');
+  menuButton.hidden = false;
+  menuButton.addEventListener('click', () => menu.showModal());
+  for (const link of menu.querySelectorAll('a')) link.addEventListener('click', () => menu.close());
+  menu.addEventListener('click', (event) => {
+    if (event.target !== menu) return;
+    const box = menu.getBoundingClientRect();
+    if (event.clientX < box.left || event.clientX > box.right) menu.close();
+  });
+  compactLayout.addEventListener('change', () => {
+    if (!compactLayout.matches && menu.open) menu.close();
+  });
+}
+
+const navLinks = [...masthead.querySelectorAll('.navigation a')];
+const navSections = navLinks.map((link) => document.querySelector(link.hash));
+let sectionObserver;
+
+function trackSections() {
+  sectionObserver?.disconnect();
+  const top = Math.round(innerHeight * 0.28);
+  const bottom = innerHeight - top - 1;
+  sectionObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      const link = navLinks[navSections.indexOf(entry.target)];
+      if (entry.isIntersecting) link.setAttribute('aria-current', 'location');
+      else link.removeAttribute('aria-current');
+    }
+  }, { rootMargin: `-${top}px 0px -${bottom}px 0px` });
+  for (const section of navSections) sectionObserver.observe(section);
+}
+trackSections();
+addEventListener('resize', trackSections, { passive: true });
+
 const canHover = matchMedia('(hover: hover) and (pointer: fine)');
 let frame = 0;
-let slide = 0;
+let scrollDepth = 0;
 let drift = 0;
 let targetX = 0;
+
 function updateHero() {
   frame = 0;
-  const target = reduceMotion.matches ? 0 : Math.min(scrollY, hero.offsetHeight) * 0.23;
-  slide += (target - slide) * 0.22;
-  drift += ((reduceMotion.matches ? 0 : targetX) - drift) * 0.16;
-  hero.style.setProperty('--hero-shift', slide + 'px');
+  const heroHeight = hero.offsetHeight;
+  const position = scrollY;
+  const target = reduceMotion.matches ? 0 : Math.min(1, position / heroHeight);
+  const horizontal = reduceMotion.matches ? 0 : targetX;
+  scrollDepth += (target - scrollDepth) * 0.22;
+  drift += (horizontal - drift) * 0.2;
+  masthead.classList.toggle('over-art', position < heroHeight - masthead.offsetHeight);
+  hero.style.setProperty('--hero-shift', (scrollDepth * heroHeight * 0.13) + 'px');
   hero.style.setProperty('--hero-x', drift + 'px');
-  hero.style.setProperty('--copy-shift', (slide * 0.43) + 'px');
-  if (Math.abs(target - slide) + Math.abs(targetX - drift) > 0.16 && !reduceMotion.matches) scheduleHero();
+  hero.style.setProperty('--hero-scale', String(1.035 + scrollDepth * 0.11));
+  hero.style.setProperty('--copy-shift', (scrollDepth * heroHeight * -0.045) + 'px');
+  if (!reduceMotion.matches && Math.abs(target - scrollDepth) + Math.abs(horizontal - drift) * 0.01 > 0.0015) scheduleHero();
 }
 function scheduleHero() {
   if (!frame) frame = requestAnimationFrame(updateHero);
 }
-addEventListener('scroll', () => {
-  if (scrollY < hero.offsetHeight * 1.4 || slide < hero.offsetHeight * 0.22) scheduleHero();
-}, { passive: true });
+addEventListener('scroll', scheduleHero, { passive: true });
+addEventListener('resize', scheduleHero, { passive: true });
 hero.addEventListener('pointermove', (event) => {
   if (!canHover.matches || reduceMotion.matches) return;
-  targetX = (event.clientX / hero.clientWidth - 0.5) * 26;
+  targetX = (event.clientX / hero.clientWidth - 0.5) * 24;
   scheduleHero();
 });
 hero.addEventListener('pointerleave', () => {
   targetX = 0;
   scheduleHero();
 });
-reduceMotion.addEventListener('change', scheduleHero);
+reduceMotion.addEventListener('change', () => {
+  targetX = 0;
+  if (reduceMotion.matches) scrollDepth = drift = 0;
+  scheduleHero();
+});
 scheduleHero();
 renderSnapshot();
 activate(state.current);

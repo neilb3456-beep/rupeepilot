@@ -3,12 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#071612">
+  <meta name="theme-color" content="#101820">
   <meta name="description" content="Explore historical Indian stock and crypto prices, compare their moves and model a monthly investment with RupeePilot.">
-  <title>RupeePilot — Market research studio</title>
+  <title>RupeePilot — Markets and money tools</title>
   <link rel="icon" href="assets/favicon.png" type="image/png">
   <link rel="preload" href="assets/manrope.woff" as="font" type="font/woff" crossorigin>
   <link rel="preload" href="assets/instrument-italic.woff" as="font" type="font/woff" crossorigin>
+  <link rel="preload" href="assets/instrument-regular.woff" as="font" type="font/woff" crossorigin>
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="app.js"></script>
   <script type="module" src="planner.js"></script>
@@ -23,26 +24,42 @@
       <nav class="navigation" aria-label="Main navigation">
         <a href="#markets">Markets</a>
         <a href="#planner">Planner</a>
-        <a href="#sip" aria-label="SIP calculator">SIP<span class="nav-calculator-label"> calculator</span></a>
+        <a href="#field-notes">Field notes</a>
       </nav>
-      <a class="nav-action" href="#markets">Open explorer</a>
+      <a class="nav-action" href="#markets" data-watchlist>Watchlist</a>
+      <button class="menu-toggle" type="button" aria-controls="mobile-menu" aria-haspopup="dialog" hidden>Menu <span aria-hidden="true"></span></button>
     </div>
   </header>
+  <dialog id="mobile-menu" class="mobile-menu" aria-labelledby="menu-title">
+    <div class="menu-head"><h2 id="menu-title">Explore RupeePilot</h2><form method="dialog"><button class="menu-close" type="submit" autofocus>Close</button></form></div>
+    <nav aria-label="Mobile navigation">
+      <a href="#markets">Markets</a>
+      <a href="#planner">Planner</a>
+      <a href="#field-notes">Field notes</a>
+      <a href="#sip">SIP calculator</a>
+      <a href="#markets" data-watchlist>Watchlist</a>
+    </nav>
+  </dialog>
   <main id="main" tabindex="-1">
     <section id="top" class="hero" aria-labelledby="hero-title">
       <div class="hero-image">
         <picture>
-          <source media="(max-width: 640px)" srcset="assets/emerald-loop-small.webp">
-          <img src="assets/emerald-loop.webp" alt="" width="1440" height="960" fetchpriority="high">
+          <source media="(max-width: 600px)" srcset="assets/mumbai-dusk-small.webp">
+          <img src="assets/mumbai-dusk.webp" alt="" width="1440" height="960" fetchpriority="high">
         </picture>
       </div>
       <div class="shell hero-inner">
         <div class="hero-content">
-          <p class="overline hero-kicker"><span></span> THE MARKET RESEARCH STUDIO</p>
-          <h1 id="hero-title">Markets in<br><em>perspective.</em></h1>
-          <p class="hero-summary">Explore Indian equities and digital assets side by side. Follow the price, compare the move, and understand what the chart is telling you.</p>
-          <a class="pill primary" href="#markets">Explore markets</a>
+          <div class="hero-title-block">
+            <p class="overline hero-kicker"><span></span> MARKETS &amp; PERSONAL FINANCE</p>
+            <h1 id="hero-title"><span>Take the</span> <em>long view.</em></h1>
+          </div>
+          <div class="hero-deck">
+            <p class="hero-summary">Explore Indian stocks and digital assets. Compare what moved, then test what it could take to reach your own financial goals.</p>
+            <a class="hero-cta" href="#markets">Explore the market desk</a>
+          </div>
         </div>
+        <a class="hero-index-link" href="#explore"><span aria-hidden="true"></span> Explore RupeePilot</a>
       </div>
     </section>
     <section class="snapshot" aria-label="Featured assets">
@@ -52,10 +69,24 @@
       </div>
     </section>
 
+    <section id="explore" class="orientation" aria-labelledby="explore-title">
+      <div class="shell orientation-grid">
+        <div class="orientation-copy reveal">
+          <p class="overline"><span class="section-tick"></span> EXPLORE RUPEEPILOT</p>
+          <h2 id="explore-title">From market moves <em>to money plans.</em></h2>
+        </div>
+        <div class="route-list reveal">
+          <a href="#markets"><strong>Market desk</strong><span>Compare historical stock and crypto prices</span></a>
+          <a href="#planner"><strong>Money planner</strong><span>Model savings goals, a reserve, or a loan</span></a>
+          <a href="#field-notes"><strong>Field notes</strong><span>Understand what the numbers measure</span></a>
+        </div>
+      </div>
+    </section>
+
     <section id="markets" class="markets" aria-labelledby="markets-title">
       <div class="shell">
         <div class="section-head reveal">
-          <div><p class="overline"><span class="section-tick"></span> MARKET EXPLORER</p><h2 id="markets-title">Look a little <em>closer.</em></h2></div>
+          <div><p class="overline"><span class="section-tick"></span> MARKET EXPLORER</p><h2 id="markets-title">Read the <em>move.</em></h2></div>
           <p>Search a symbol, switch timeframes, or compare two assets from the same starting point.</p>
         </div>
 
@@ -108,7 +139,14 @@
 
     <section id="planner" class="planner" aria-labelledby="planner-title">
       <div class="shell">
-        <div class="section-head reveal"><div><p class="overline"><span class="section-tick"></span> PERSONAL FINANCE</p><h2 id="planner-title">Make a <em>plan.</em></h2></div><p>Work out how much to set aside, how long a goal might take, or what a loan would cost each month.</p></div>
+        <div class="planner-feature reveal">
+          <div class="planner-copy">
+            <p class="overline"><span class="section-tick"></span> PERSONAL FINANCE</p>
+            <h2 id="planner-title">Make time <em>work for you.</em></h2>
+            <p>Work out how much to set aside, how long a goal might take, or what a loan would cost each month.</p>
+          </div>
+          <figure class="planner-art"><img src="assets/brass-steps.webp" alt="" width="900" height="600" loading="lazy" decoding="async"></figure>
+        </div>
         <div id="planner-controls" class="planner-controls" role="group" aria-label="Choose a calculator">
           <button type="button" data-plan="reserve" aria-pressed="true">Emergency fund</button>
           <button type="button" data-plan="goal" aria-pressed="false">Savings goal</button>
@@ -161,6 +199,6 @@
       <div class="footer-links"><a href="#markets">Markets</a><a href="#planner">Planner</a><a href="#field-notes">Field notes</a><a href="#sip">SIP calculator</a></div>
     </div>
   </footer>
-  <noscript><div class="noscript">Enable JavaScript to use the market explorer and SIP calculator.</div></noscript>
+  <noscript><div class="noscript">Enable JavaScript to use the market desk and calculators.</div></noscript>
 </body>
 </html>
