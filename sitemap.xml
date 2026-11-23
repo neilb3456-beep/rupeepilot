@@ -1,9 +1,23 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://YOUR-DOMAIN.example/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
-  <url><loc>https://YOUR-DOMAIN.example/about.html</loc></url>
-  <url><loc>https://YOUR-DOMAIN.example/privacy.html</loc></url>
-  <url><loc>https://YOUR-DOMAIN.example/terms.html</loc></url>
-  <url><loc>https://YOUR-DOMAIN.example/disclosure.html</loc></url>
-  <url><loc>https://YOUR-DOMAIN.example/contact.html</loc></url>
+  <url>
+    <loc>https://neilb3456-beep.github.io/rupeepilot/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://neilb3456-beep.github.io/rupeepilot/about.html</loc>
+  </url>
+  <url>
+    <loc>https://neilb3456-beep.github.io/rupeepilot/privacy.html</loc>
+  </url>
+  <url>
+    <loc>https://neilb3456-beep.github.io/rupeepilot/terms.html</loc>
+  </url>
+  <url>
+    <loc>https://neilb3456-beep.github.io/rupeepilot/disclosure.html</loc>
+  </url>
+  <url>
+    <loc>https://neilb3456-beep.github.io/rupeepilot/contact.html</loc>
+  </url>
 </urlset>

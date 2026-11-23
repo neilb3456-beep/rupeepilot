@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://neilb3456-beep.github.io/rupeepilot/sitemap.xml
