@@ -1,153 +1,470 @@
-(() => {
-  'use strict';
-  const $ = (selector, root = document) => root.querySelector(selector);
-  const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+import { assets, snapshotDate } from './data.js';
 
-  // Small-screen navigation
-  const menuToggle = $('#menuToggle');
-  const nav = $('.desktop-nav');
-  menuToggle?.addEventListener('click', () => {
-    const open = nav.classList.toggle('open');
-    menuToggle.setAttribute('aria-expanded', String(open));
-    menuToggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
-  });
-  $$('.desktop-nav a').forEach(link => link.addEventListener('click', () => {
-    nav.classList.remove('open'); menuToggle?.setAttribute('aria-expanded', 'false');
-  }));
+const select = (id) => document.getElementById(id);
+const byId = new Map(assets.map((asset) => [asset.id, asset]));
+const chart = select('chart');
+const context = chart.getContext('2d');
+const compareSelect = select('compare');
+const search = select('asset-search');
+const filters = Array.from(document.querySelectorAll('[data-filter]'));
+const ranges = Array.from(document.querySelectorAll('[data-days]'));
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+const compactLayout = matchMedia('(max-width: 760px)');
+const storeKey = 'rupeepilot.market-studio.watchlist.v1';
+const prices = {
+  INR: new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }),
+  USD: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }),
+};
+const rupees = new Intl.NumberFormat('en-IN', {
+  style: 'currency', currency: 'INR', maximumFractionDigits: 0,
+});
+const dayLabel = new Intl.DateTimeFormat('en-IN', {
+  month: 'short', day: 'numeric', timeZone: 'UTC',
+});
+const endpoint = Date.parse(snapshotDate);
+const day = 86400000;
+const colors = ['#267651', '#735bbe'];
 
-  // Gentle reveal, with a no-JS / reduced-motion friendly fallback.
-  if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    const observer = new IntersectionObserver(entries => entries.forEach(entry => {
-      if (entry.isIntersecting) { entry.target.classList.add('is-visible'); observer.unobserve(entry.target); }
-    }), { threshold: 0.12 });
-    $$('.reveal').forEach(el => observer.observe(el));
-  } else $$('.reveal').forEach(el => el.classList.add('is-visible'));
+const state = {
+  group: 'Stocks',
+  current: assets[0],
+  compare: null,
+  days: 31,
+  point: -1,
+  saved: new Set(),
+  series: [],
+};
 
-  // Chart selector + market presets.
-  const chart = $('#mainChart');
-  const symbolSelect = $('#symbolSelect');
-  const chartTitle = $('#chartTitle');
-  const marketPresets = {
-    india: [['NSE:NIFTY','NIFTY 50'],['BSE:SENSEX','SENSEX'],['NSE:RELIANCE','RELIANCE'],['NSE:HDFCBANK','HDFC BANK'],['NSE:TCS','TCS'],['NSE:INFY','INFOSYS']],
-    global: [['NASDAQ:AAPL','APPLE'],['NASDAQ:NVDA','NVIDIA'],['NASDAQ:MSFT','MICROSOFT'],['NASDAQ:TSLA','TESLA'],['NYSE:KO','COCA-COLA']],
-    crypto: [['BINANCE:BTCUSDT','BITCOIN'],['BINANCE:ETHUSDT','ETHEREUM'],['BINANCE:SOLUSDT','SOLANA'],['BINANCE:BNBUSDT','BNB'],['BINANCE:XRPUSDT','XRP']]
-  };
-  function setSymbol(symbol, title) {
-    if (!chart) return;
-    chart.setAttribute('symbol', symbol);
-    if (chartTitle) chartTitle.innerHTML = `${title} <span>· ${symbol.split(':')[0]}</span>`;
-    if (symbolSelect && [...symbolSelect.options].some(o => o.value === symbol)) symbolSelect.value = symbol;
+try {
+  const saved = JSON.parse(localStorage.getItem(storeKey) || '[]');
+  if (Array.isArray(saved)) state.saved = new Set(saved.filter((id) => byId.has(id)));
+} catch {}
+
+function money(value, currency) {
+  return prices[currency].format(value);
+}
+
+function signed(value) {
+  const rounded = Number(value.toFixed(2));
+  return (rounded > 0 ? '+' : '') + rounded.toFixed(2) + '%';
+}
+
+function change(from, to) {
+  return ((to - from) / from) * 100;
+}
+
+function dailyMove(asset) {
+  return change(asset.closes.at(-2)[1], asset.closes.at(-1)[1]);
+}
+
+function moveClass(value) {
+  if (value === 0) return '';
+  return value > 0 ? 'gain' : 'loss';
+}
+
+function updatePressedControls() {
+  for (const button of filters) {
+    button.setAttribute('aria-pressed', String(button.dataset.filter === state.group));
   }
-  symbolSelect?.addEventListener('change', () => {
-    const option = symbolSelect.selectedOptions[0]; setSymbol(symbolSelect.value, option.textContent);
-  });
-  $$('.market-tab').forEach(tab => tab.addEventListener('click', () => {
-    $$('.market-tab').forEach(t => { t.classList.toggle('active', t === tab); t.setAttribute('aria-selected', String(t === tab)); });
-    const preset = marketPresets[tab.dataset.market];
-    symbolSelect.innerHTML = preset.map(([symbol, name]) => `<option value="${symbol}">${name}</option>`).join('');
-    setSymbol(preset[0][0], preset[0][1]);
-  }));
-  $$('[data-coin]').forEach(button => button.addEventListener('click', () => {
-    setSymbol(button.dataset.coin, button.dataset.coin.split(':')[1].replace('USDT',''));
-    $('#markets')?.scrollIntoView({ behavior: 'smooth' });
-    $$('.market-tab').forEach(t => { t.classList.toggle('active', t.dataset.market === 'crypto'); t.setAttribute('aria-selected', String(t.dataset.market === 'crypto')); });
-    const preset = marketPresets.crypto;
-    symbolSelect.innerHTML = preset.map(([symbol, name]) => `<option value="${symbol}">${name}</option>`).join('');
-    symbolSelect.value = button.dataset.coin;
-  }));
-
-  // Switch between screener and heatmap without reloading the entire page.
-  $$('.explorer-tab').forEach(tab => tab.addEventListener('click', () => {
-    $$('.explorer-tab').forEach(t => t.classList.toggle('active', t === tab));
-    const frame = $('#stockExplorerFrame');
-    if (!frame) return;
-    frame.innerHTML = tab.dataset.explorer === 'heatmap'
-      ? '<div class="explorer-widget"><tv-heatmap heatmap-type="stock" data-source="SPX500" grouping="sector" block-size="market_cap_basic" block-color="change" color-theme="light" style="display:block;width:100%;height:580px"></tv-heatmap></div>'
-      : '<div class="explorer-widget"><tv-screener market="india" screener="stock" display="table" color-theme="light" height="580" width="100%" style="display:block;width:100%;height:580px"></tv-screener></div>';
-  }));
-
-  // Personal portfolio: explicit manual records only; browser-local storage.
-  const STORAGE_KEY = 'rupeepilot.portfolio.v2';
-  let assets = [];
-  try { assets = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); if (!Array.isArray(assets)) assets = []; } catch { assets = []; }
-  const money = value => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(value || 0);
-  const dialog = $('#assetDialog');
-  function saveAssets() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(assets)); } catch { /* private browsing may block storage */ } }
-  function renderAssets() {
-    const invested = assets.reduce((sum, asset) => sum + asset.units * asset.price, 0);
-    $('#totalInvested').textContent = money(invested);
-    $('#assetCount').textContent = String(assets.length);
-    $('#watchCount').textContent = String(assets.length);
-    $('#portfolioEmpty').hidden = assets.length > 0;
-    $('#portfolioTableWrap').hidden = assets.length === 0;
-    $('#portfolioRows').innerHTML = assets.map((asset, index) => `<tr><td><strong>${escapeHtml(asset.name)}</strong></td><td>${Number(asset.units).toLocaleString('en-IN')}</td><td>${money(asset.price)}</td><td>${money(asset.units * asset.price)}</td><td><button class="remove-asset" data-remove="${index}" aria-label="Remove ${escapeHtml(asset.name)}">×</button></td></tr>`).join('');
+  for (const button of ranges) {
+    button.setAttribute('aria-pressed', String(Number(button.dataset.days) === state.days));
   }
-  function escapeHtml(value) { return String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])); }
-  function openDialog() { if (dialog?.showModal) dialog.showModal(); else alert('Your browser does not support this form.'); }
-  $('#addAssetBtn')?.addEventListener('click', openDialog);
-  $('#emptyAddBtn')?.addEventListener('click', openDialog);
-  $('#portfolioRows')?.addEventListener('click', event => {
-    const button = event.target.closest('[data-remove]'); if (!button) return;
-    assets.splice(Number(button.dataset.remove), 1); saveAssets(); renderAssets();
-  });
-  $('#assetForm')?.addEventListener('submit', event => {
-    event.preventDefault();
-    const name = $('#assetName').value.trim();
-    const units = Number($('#assetUnits').value);
-    const price = Number($('#assetPrice').value);
-    if (!name || !Number.isFinite(units) || units <= 0 || !Number.isFinite(price) || price <= 0) return;
-    assets.push({ name, units, price, addedAt: Date.now() }); saveAssets(); renderAssets();
-    event.currentTarget.reset(); dialog.close();
-  });
-  renderAssets();
+}
 
-  // Financial calculators.
-  const fmt = value => '₹' + Math.round(value).toLocaleString('en-IN');
-  const tools = {
-    sip: {
-      title: '01 — SIP PLANNER', heading: 'Little by little adds up.',
-      fields: [['Monthly investment','sipAmount',500,100000,500,5000,'₹'],['Expected annual return','sipRate',1,20,.5,12,'%'],['Time period','sipYears',1,40,1,10,' years']],
-      calculate: v => { const n = v.sipYears * 12, r = v.sipRate / 1200, invested = v.sipAmount * n; const total = r ? v.sipAmount * ((Math.pow(1+r,n)-1)/r) * (1+r) : invested; return { total, invested, growth: total-invested, text: `If you invest ${fmt(v.sipAmount)} every month for ${v.sipYears} years at an assumed ${v.sipRate}% annual return.` }; }
-    },
-    emi: {
-      title: '02 — LOAN EMI', heading: 'Know the monthly commitment.',
-      fields: [['Loan amount','emiAmount',50000,10000000,50000,2500000,'₹'],['Annual interest rate','emiRate',1,24,.25,9,'%'],['Loan tenure','emiYears',1,30,1,5,' years']],
-      calculate: v => { const n=v.emiYears*12,r=v.emiRate/1200,emi=r? v.emiAmount*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1):v.emiAmount/n, total=emi*n; return {total,invested:v.emiAmount,growth:total-v.emiAmount,text:`Estimated monthly EMI: ${fmt(emi)} for ${v.emiYears} years. Total repayment includes interest.`}; }
-    },
-    fd: {
-      title: '03 — FIXED DEPOSIT', heading: 'Let time do its thing.',
-      fields: [['Deposit amount','fdAmount',1000,10000000,1000,100000,'%'],['Annual interest rate','fdRate',1,12,.25,7,'%'],['Time period','fdYears',1,15,1,5,' years']],
-      calculate: v => { const total=v.fdAmount*Math.pow(1+v.fdRate/400,v.fdYears*4); return {total,invested:v.fdAmount,growth:total-v.fdAmount,text:`Illustrative quarterly-compounding estimate for ${v.fdYears} years at ${v.fdRate}% annual interest, before tax.`}; }
-    },
-    budget: {
-      title: '04 — BUDGET SPLIT', heading: 'Give every rupee a role.',
-      fields: [['Monthly take-home income','budgetAmount',5000,500000,1000,50000,'₹'],['Needs allocation','budgetNeeds',20,80,5,50,'%'],['Wants allocation','budgetWants',0,50,5,30,'%']],
-      calculate: v => { const wants=Math.min(v.budgetWants,100-v.budgetNeeds), savings=100-v.budgetNeeds-wants; return {total:v.budgetAmount,invested:v.budgetAmount*v.budgetNeeds/100,growth:v.budgetAmount*savings/100,text:`Needs ${v.budgetNeeds}% · Wants ${wants}% · Savings ${savings}%. Adjust the split to fit your actual life.`}; }
+function renderSnapshot() {
+  const featured = ['RELIANCE', 'HDFCBANK', 'BTC', 'ETH'].map((id) => byId.get(id));
+  select('snapshots').replaceChildren(...featured.map((asset) => {
+    const anchor = document.createElement('a');
+    const move = dailyMove(asset);
+    anchor.className = 'snapshot-item';
+    anchor.href = '#markets';
+    anchor.innerHTML = `<strong>${asset.name}</strong><span class="snap-price">${money(asset.closes.at(-1)[1], asset.currency)}</span><span class="snap-change ${moveClass(move)}" aria-label="${signed(move)} vs previous close">${signed(move)}</span>`;
+    anchor.addEventListener('click', () => {
+      state.group = asset.group;
+      search.value = '';
+      activate(asset);
+    });
+    return anchor;
+  }));
+}
+
+function renderList() {
+  const term = search.value.trim().toLowerCase();
+  const shown = assets.filter((asset) => {
+    const matchesGroup = state.group === 'Saved' ? state.saved.has(asset.id) : asset.group === state.group;
+    return matchesGroup && (asset.id + ' ' + asset.name).toLowerCase().includes(term);
+  });
+  select('asset-count').textContent = shown.length + (shown.length === 1 ? ' asset' : ' assets');
+  const empty = select('empty-assets');
+  empty.hidden = shown.length > 0;
+  empty.textContent = state.group === 'Saved' && !state.saved.size
+    ? 'Save an asset from its chart to add it here.'
+    : 'No matches. Try a different name or symbol.';
+  select('asset-list').replaceChildren(...shown.map((asset) => {
+    const item = document.createElement('li');
+    const move = dailyMove(asset);
+    item.innerHTML = `<button class="asset-row" type="button" data-id="${asset.id}" aria-pressed="${asset === state.current}">
+      <span class="asset-icon ${asset.tone}" aria-hidden="true">${asset.mark}</span>
+      <span class="asset-row-copy"><strong>${asset.name}</strong><small>${asset.id}</small></span>
+      <span class="row-change ${moveClass(move)}" aria-label="${signed(move)} vs previous close">${signed(move)}</span>
+    </button>`;
+    item.firstElementChild.addEventListener('click', (event) => {
+      activate(asset, false);
+      if (compactLayout.matches && event.detail > 0) {
+        document.querySelector('.analysis-panel').scrollIntoView({
+          behavior: reduceMotion.matches ? 'instant' : 'smooth',
+          block: 'start',
+        });
+      }
+    });
+    return item;
+  }));
+}
+
+function renderSave() {
+  const saved = state.saved.has(state.current.id);
+  const button = select('save-asset');
+  button.setAttribute('aria-pressed', String(saved));
+  button.setAttribute('aria-label', (saved ? 'Remove ' : 'Save ') + state.current.name + (saved ? ' from watchlist' : ' to watchlist'));
+  button.firstElementChild.textContent = saved ? '★' : '☆';
+  button.lastElementChild.textContent = saved ? 'Saved' : 'Save';
+}
+
+function activate(asset, refreshList = true) {
+  state.current = asset;
+  if (state.compare === asset) state.compare = null;
+  const icon = select('selected-icon');
+  icon.className = 'asset-icon ' + asset.tone;
+  icon.textContent = asset.mark;
+  select('selected-name').textContent = asset.name;
+  select('selected-meta').textContent = [
+    asset.id, asset.group === 'Stocks' ? 'NSE' : 'Crypto', asset.currency, asset.sector,
+  ].join(' · ');
+  select('asset-context').textContent = asset.context;
+  compareSelect.replaceChildren(new Option('None', ''), ...assets
+    .filter((alternative) => alternative !== asset)
+    .map((alternative) => new Option(alternative.id + ' · ' + alternative.currency, alternative.id)));
+  compareSelect.value = state.compare?.id ?? '';
+  renderSave();
+  updatePressedControls();
+  if (refreshList) renderList();
+  else {
+    for (const button of document.querySelectorAll('.asset-row')) {
+      button.setAttribute('aria-pressed', String(button.dataset.id === asset.id));
     }
-  };
-  let activeTool = 'sip';
-  const values = {};
-  function buildTool(key) {
-    activeTool = key; const config=tools[key];
-    config.fields.forEach(field => values[field[1]]=field[5]);
-    $('#toolInputs').innerHTML = `<div class="tool-intro"><span class="panel-label">${config.title}</span><h3>${config.heading}</h3><p>${key==='sip'?'Estimate what regular investing could grow into. Returns are assumptions, not promises.':key==='emi'?'Understand the monthly cost and total repayment of a loan before you commit.':key==='fd'?'Explore an illustrative fixed-deposit maturity value. Actual bank terms and tax treatment vary.':'A simple starting point for dividing monthly income into needs, wants and savings.'}</p></div>` + config.fields.map(([label,id,min,max,step,value,suffix]) => `<label class="field-label">${label.toUpperCase()} <span id="${id}Label">${suffix==='%'?value+'%':suffix===' years'?value+' years':fmt(value)}</span><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${value}"></label>`).join('');
-    config.fields.forEach(([label,id,min,max,step,value,suffix]) => $(`#${id}`).addEventListener('input', event => {
-      const number=Number(event.target.value); values[id]=number; $(`#${id}Label`).textContent=suffix==='%'?number+'%':suffix===' years'?number+' years':fmt(number); updateTool();
-    }));
-    updateTool();
   }
-  function updateTool() {
-    const result=tools[activeTool].calculate(values);
-    $('#toolResult').textContent=fmt(result.total);
-    $('#toolResultText').textContent=result.text;
-    $('#resultInvested').textContent=fmt(result.invested);
-    $('#resultGrowth').textContent=fmt(result.growth);
-    const denom=Math.max(1,Math.abs(result.total));
-    $('#investedBar').style.width=Math.max(0,Math.min(100,result.invested/denom*100))+'%';
-    $('#growthBar').style.width=Math.max(0,Math.min(100,result.growth/denom*100))+'%';
+  renderSeries();
+}
+
+function windowed(asset) {
+  const start = endpoint - state.days * day;
+  return asset.closes.filter(([date]) => Date.parse(date) >= start);
+}
+
+function makeSeries(asset, points, indexed) {
+  const base = points[0][1];
+  return { asset, points: points.map(([date, close]) => ({
+    date, close, value: indexed ? (close / base) * 100 : close,
+  })) };
+}
+
+function showSource(id, asset) {
+  const anchor = select(id);
+  anchor.hidden = !asset;
+  if (!asset) return;
+  anchor.href = asset.source;
+  anchor.textContent = asset.id + ' · ' + asset.publisher;
+}
+
+function renderSeries() {
+  const currentPoints = windowed(state.current);
+  if (state.compare) {
+    const comparePoints = new Map(windowed(state.compare));
+    const overlap = currentPoints.filter(([date]) => comparePoints.has(date));
+    state.series = [
+      makeSeries(state.current, overlap, true),
+      makeSeries(state.compare, overlap.map(([date]) => [date, comparePoints.get(date)]), true),
+    ];
+  } else {
+    state.series = [makeSeries(state.current, currentPoints, false)];
   }
-  $$('.tool-tab').forEach(tab => tab.addEventListener('click', () => {
-    $$('.tool-tab').forEach(t=>t.classList.toggle('active',t===tab)); buildTool(tab.dataset.tool);
-  }));
-  buildTool('sip');
-})();
+  const points = state.series[0].points;
+  state.point = points.length - 1;
+  chart.setAttribute('aria-valuemin', '1');
+  chart.setAttribute('aria-valuemax', String(points.length));
+  const keys = state.series.map(({ asset }, index) =>
+    `<span class="legend-key${index ? ' alt' : ''}">${asset.id}</span>`);
+  const label = state.compare ? 'Indexed · first close = 100' : state.current.currency + ' · Daily close';
+  select('chart-legend').innerHTML = keys.join('') + `<span>${label}</span>`;
+  const baseline = points[0].close;
+  const last = points.at(-1).close;
+  const closes = points.map((point) => point.close);
+  const move = change(baseline, last);
+  const stats = [
+    ['Last close', money(last, state.current.currency), ''],
+    ['Period change', signed(move), moveClass(move)],
+    ['Highest close', money(Math.max(...closes), state.current.currency), ''],
+    ['Lowest close', money(Math.min(...closes), state.current.currency), ''],
+  ];
+  select('metrics').innerHTML = stats.map(([name, value, tone]) =>
+    `<div class="metric"><small>${name}</small><strong class="${tone}">${value}</strong></div>`).join('');
+  showSource('source-primary', state.current);
+  showSource('source-secondary', state.compare);
+  updateReadout();
+  drawChart();
+}
+
+function updateReadout() {
+  const date = state.series[0].points[state.point].date;
+  const label = dayLabel.format(new Date(date));
+  const values = state.series.map(({ asset, points }) => {
+    const point = points[state.point];
+    const close = money(point.close, asset.currency);
+    return asset.id + ' ' + close + (state.compare ? ' (' + point.value.toFixed(1) + ')' : '');
+  }).join(' · ');
+  select('chart-date').dateTime = date;
+  select('chart-date').textContent = label;
+  select('chart-values').textContent = values;
+  chart.setAttribute('aria-valuenow', String(state.point + 1));
+  chart.setAttribute('aria-valuetext', label + ', ' + values);
+}
+
+function movePin(index) {
+  const end = state.series[0].points.length - 1;
+  const next = Math.max(0, Math.min(index, end));
+  if (next === state.point) return;
+  state.point = next;
+  updateReadout();
+  drawChart();
+}
+
+let geometry;
+
+function drawChart() {
+  if (!state.series.length || !context) return;
+  const { width, height } = chart.getBoundingClientRect();
+  if (!width || !height) return;
+  const ratio = Math.min(devicePixelRatio || 1, 2);
+  const pixelWidth = Math.round(width * ratio);
+  const pixelHeight = Math.round(height * ratio);
+  if (chart.width !== pixelWidth || chart.height !== pixelHeight) {
+    chart.width = pixelWidth;
+    chart.height = pixelHeight;
+  }
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  context.clearRect(0, 0, width, height);
+
+  const points = state.series[0].points;
+  const values = state.series.flatMap((entry) => entry.points.map((point) => point.value));
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const pad = Math.max((max - min) * 0.13, max * 0.001);
+  const lower = min - pad;
+  const upper = max + pad;
+  const left = state.compare ? 42 : 63;
+  const right = width - 14;
+  const top = 13;
+  const bottom = height - 27;
+  const first = Date.parse(points[0].date);
+  const span = Date.parse(points.at(-1).date) - first || day;
+  const x = (point) => left + ((Date.parse(point.date) - first) / span) * (right - left);
+  const y = (value) => bottom - ((value - lower) / (upper - lower)) * (bottom - top);
+  geometry = points.map(x);
+
+  context.font = '11px Manrope, Arial, sans-serif';
+  context.lineWidth = 1;
+  context.fillStyle = '#53665b';
+  context.strokeStyle = '#e4eadf';
+  context.textAlign = 'right';
+  context.textBaseline = 'middle';
+  for (let index = 0; index < 5; index += 1) {
+    const value = lower + ((upper - lower) * index) / 4;
+    const line = y(value);
+    context.beginPath();
+    context.moveTo(left, line);
+    context.lineTo(right, line);
+    context.stroke();
+    const symbol = state.current.currency === 'INR' ? '₹' : '$';
+    const short = state.compare ? value.toFixed(0) : symbol + Math.round(value).toLocaleString('en-IN');
+    context.fillText(short, left - 8, line);
+  }
+  const tickCount = width < 460 ? 3 : 5;
+  context.textBaseline = 'top';
+  for (let index = 0; index < tickCount; index += 1) {
+    const at = Math.round((index * (points.length - 1)) / (tickCount - 1));
+    context.textAlign = index === 0 ? 'left' : index === tickCount - 1 ? 'right' : 'center';
+    context.fillText(dayLabel.format(new Date(points[at].date)), x(points[at]), bottom + 9);
+  }
+  if (!state.compare) {
+    const shade = context.createLinearGradient(0, top, 0, bottom);
+    shade.addColorStop(0, '#8bca9b56');
+    shade.addColorStop(1, '#8bca9b08');
+    context.beginPath();
+    context.moveTo(x(points[0]), bottom);
+    for (const point of points) context.lineTo(x(point), y(point.value));
+    context.lineTo(x(points.at(-1)), bottom);
+    context.closePath();
+    context.fillStyle = shade;
+    context.fill();
+  }
+
+  const activeX = x(points[state.point]);
+  context.strokeStyle = '#657b6b';
+  context.setLineDash([3, 4]);
+  context.beginPath();
+  context.moveTo(activeX, top);
+  context.lineTo(activeX, bottom);
+  context.stroke();
+  context.setLineDash([]);
+  for (const [index, entry] of state.series.entries()) {
+    context.strokeStyle = colors[index];
+    context.lineWidth = 2.25;
+    context.lineJoin = 'round';
+    context.lineCap = 'round';
+    context.beginPath();
+    entry.points.forEach((point, pointIndex) => {
+      if (pointIndex === 0) context.moveTo(x(point), y(point.value));
+      else context.lineTo(x(point), y(point.value));
+    });
+    context.stroke();
+    context.beginPath();
+    context.arc(activeX, y(entry.points[state.point].value), 4, 0, Math.PI * 2);
+    context.fillStyle = '#fffffa';
+    context.fill();
+    context.stroke();
+  }
+}
+
+function pointAtPointer(event) {
+  if (!geometry) return;
+  const offset = event.clientX - chart.getBoundingClientRect().left;
+  let nearest = 0;
+  for (let index = 1; index < geometry.length; index += 1) {
+    if (Math.abs(geometry[index] - offset) < Math.abs(geometry[nearest] - offset)) nearest = index;
+  }
+  movePin(nearest);
+}
+
+chart.addEventListener('pointermove', (event) => {
+  if (event.pointerType !== 'touch') pointAtPointer(event);
+});
+chart.addEventListener('click', (event) => {
+  if (event.detail > 0) pointAtPointer(event);
+});
+chart.addEventListener('keydown', (event) => {
+  const movement = { ArrowRight: state.point + 1, ArrowUp: state.point + 1, ArrowLeft: state.point - 1, ArrowDown: state.point - 1, Home: 0, End: state.series[0].points.length - 1 };
+  if (!Object.hasOwn(movement, event.key)) return;
+  event.preventDefault();
+  movePin(movement[event.key]);
+});
+new ResizeObserver(drawChart).observe(chart);
+document.fonts.ready.then(drawChart);
+
+for (const button of filters) {
+  button.addEventListener('click', () => {
+    state.group = button.dataset.filter;
+    search.value = '';
+    const candidates = assets.filter((asset) => state.group === 'Saved' ? state.saved.has(asset.id) : state.group === asset.group);
+    if (candidates.length && !candidates.includes(state.current)) activate(candidates[0]);
+    else {
+      updatePressedControls();
+      renderList();
+    }
+  });
+}
+
+for (const button of ranges) {
+  button.addEventListener('click', () => {
+    state.days = Number(button.dataset.days);
+    updatePressedControls();
+    renderSeries();
+  });
+}
+search.addEventListener('input', renderList);
+compareSelect.addEventListener('change', () => {
+  state.compare = byId.get(compareSelect.value) ?? null;
+  renderSeries();
+});
+
+select('save-asset').addEventListener('click', () => {
+  const id = state.current.id;
+  if (state.saved.has(id)) state.saved.delete(id);
+  else state.saved.add(id);
+  try {
+    localStorage.setItem(storeKey, JSON.stringify([...state.saved]));
+  } catch {}
+  renderSave();
+  if (state.group === 'Saved') renderList();
+});
+
+function calculateSip() {
+  const contribution = select('monthly').valueAsNumber;
+  const years = select('years').valueAsNumber;
+  const annual = select('annual').valueAsNumber;
+  const months = years * 12;
+  const perMonth = Math.expm1(Math.log1p(annual / 100) / 12);
+  const invested = contribution * months;
+  const total = perMonth === 0 ? invested
+    : contribution * Math.expm1(months * Math.log1p(perMonth)) / perMonth;
+  const difference = total - invested;
+  const maximum = Math.max(total, invested);
+  select('monthly-label').value = rupees.format(contribution);
+  select('years-label').value = years + (years === 1 ? ' yr' : ' yrs');
+  select('annual-label').value = annual + '%';
+  select('sip-total').value = rupees.format(total);
+  select('sip-invested').textContent = rupees.format(invested);
+  select('sip-growth-label').textContent = difference < 0 ? 'Estimated loss' : 'Estimated growth';
+  select('sip-growth').textContent = rupees.format(difference);
+  select('bar-base').style.width = (Math.min(total, invested) / maximum) * 100 + '%';
+  select('bar-difference').style.width = (Math.abs(difference) / maximum) * 100 + '%';
+  select('bar-difference').parentElement.classList.toggle('negative', difference < 0);
+}
+select('sip-form').addEventListener('input', calculateSip);
+select('sip-form').addEventListener('submit', (event) => event.preventDefault());
+
+const reveal = new IntersectionObserver((entries, observer) => {
+  for (const entry of entries) {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('arrived');
+      observer.unobserve(entry.target);
+    }
+  }
+}, { threshold: 0.13 });
+for (const section of document.querySelectorAll('.reveal')) reveal.observe(section);
+
+const hero = document.querySelector('.hero');
+const canHover = matchMedia('(hover: hover) and (pointer: fine)');
+let frame = 0;
+let slide = 0;
+let drift = 0;
+let targetX = 0;
+function updateHero() {
+  frame = 0;
+  const target = reduceMotion.matches ? 0 : Math.min(scrollY, hero.offsetHeight) * 0.23;
+  slide += (target - slide) * 0.22;
+  drift += ((reduceMotion.matches ? 0 : targetX) - drift) * 0.16;
+  hero.style.setProperty('--hero-shift', slide + 'px');
+  hero.style.setProperty('--hero-x', drift + 'px');
+  hero.style.setProperty('--copy-shift', (slide * 0.43) + 'px');
+  if (Math.abs(target - slide) + Math.abs(targetX - drift) > 0.16 && !reduceMotion.matches) scheduleHero();
+}
+function scheduleHero() {
+  if (!frame) frame = requestAnimationFrame(updateHero);
+}
+addEventListener('scroll', () => {
+  if (scrollY < hero.offsetHeight * 1.4 || slide < hero.offsetHeight * 0.22) scheduleHero();
+}, { passive: true });
+hero.addEventListener('pointermove', (event) => {
+  if (!canHover.matches || reduceMotion.matches) return;
+  targetX = (event.clientX / hero.clientWidth - 0.5) * 26;
+  scheduleHero();
+});
+hero.addEventListener('pointerleave', () => {
+  targetX = 0;
+  scheduleHero();
+});
+reduceMotion.addEventListener('change', scheduleHero);
+scheduleHero();
+renderSnapshot();
+activate(state.current);
+calculateSip();
