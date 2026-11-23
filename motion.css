@@ -1,0 +1,58 @@
+/* RupeePilot — fluid motion layer */
+:root{--motion-ease:cubic-bezier(.16,1,.3,1);--motion-fast:cubic-bezier(.2,.8,.2,1)}
+html{scroll-behavior:smooth}
+body{overflow-x:hidden}
+#rp-progress{height:3px!important;background:linear-gradient(90deg,#d9fa74,#a6e7b0,#d9fa74)!important;box-shadow:0 0 18px rgba(217,250,116,.5)!important}
+.hero{perspective:1200px}
+.hero-copy .eyebrow,.hero-copy h1,.hero-copy .hero-bottom,.hero-art,.hero-meta{animation:hero-arrive 1.15s var(--motion-ease) both}
+.hero-copy .eyebrow{animation-delay:.08s}.hero-copy h1{animation-delay:.18s}.hero-copy .hero-bottom{animation-delay:.34s}.hero-art{animation:hero-art-arrive 1.5s var(--motion-ease) both .16s}.hero-meta{animation-delay:.62s}
+.hero-art{transform-style:preserve-3d;will-change:transform}
+.art-sun{animation:solar-breathe 7s ease-in-out infinite alternate,solar-glow 5s ease-in-out infinite alternate!important}
+.art-ring{transform-origin:50% 50%;animation:orbit-spin 34s linear infinite!important}
+.orbit-one{animation:orbit-drift 10s ease-in-out infinite alternate!important}
+.orbit-two{animation:orbit-drift 14s ease-in-out infinite alternate-reverse!important}
+.orbit-three{animation:orbit-drift 18s ease-in-out infinite alternate!important}
+.art-line{animation:line-breathe 6s ease-in-out infinite alternate}
+.float-top{animation:float-card 5.4s ease-in-out infinite!important}
+.float-bottom{animation:float-card 7s ease-in-out infinite reverse!important}
+.hero-stamp{animation:stamp-in 1.3s var(--motion-ease) both .7s!important}
+.ticker-track{will-change:transform}
+.ticker-track i{animation:star-turn 8s linear infinite}
+.ticker-track i:nth-child(2n){animation-direction:reverse}
+.motion-reveal{opacity:0;transform:translate3d(0,54px,0) scale(.985);filter:blur(7px);transition:opacity .95s var(--motion-ease),transform 1.1s var(--motion-ease),filter 1.1s var(--motion-ease);transition-delay:var(--motion-delay,0ms);will-change:transform,opacity}
+.motion-reveal.is-in{opacity:1;transform:translate3d(0,0,0) scale(1);filter:blur(0);will-change:auto}
+.motion-reveal[data-motion="left"]{transform:translate3d(-52px,0,0);}.motion-reveal[data-motion="right"]{transform:translate3d(52px,0,0)}
+.motion-reveal[data-motion="left"].is-in,.motion-reveal[data-motion="right"].is-in{transform:translate3d(0,0,0)}
+.reveal{opacity:0;transform:translate3d(0,42px,0);filter:blur(5px);transition:opacity 1s var(--motion-ease),transform 1s var(--motion-ease),filter 1s var(--motion-ease)}
+.reveal.is-visible{opacity:1;transform:none;filter:none}
+.feature-strip>div,.market-bottom-card,.rs-factor,.story-card,.tool-card,.news-card{transform:translateZ(0);transition:transform .7s var(--motion-ease),box-shadow .7s var(--motion-ease),background .45s ease}
+.feature-strip>div:hover,.rs-factor:hover{transform:translate3d(0,-7px,0)}
+.market-bottom-card:hover,.story-card:hover,.tool-card:hover,.news-card:hover{transform:translate3d(0,-10px,0) rotateX(1deg);box-shadow:0 32px 75px rgba(0,0,0,.17)}
+.button,.round-link,.rs-ticker,.market-tab,.explorer-tab,.tool-tab{position:relative;isolation:isolate;overflow:hidden}
+.button:before,.round-link:before{content:"";position:absolute;inset:0;background:rgba(255,255,255,.17);transform:translateX(-110%) skewX(-18deg);transition:transform .65s var(--motion-ease);z-index:-1}
+.button:hover:before,.round-link:hover:before{transform:translateX(110%) skewX(-18deg)}
+.section-kicker{background-image:linear-gradient(90deg,currentColor,currentColor);background-repeat:no-repeat;background-position:left bottom;background-size:0 1px}
+.section-kicker.is-in{animation:kicker-line 1.3s var(--motion-ease) forwards}
+.market-chart-panel,.rs-chart-card,.portfolio-app,.explorer-frame{transition:transform .7s var(--motion-ease),box-shadow .7s var(--motion-ease)}
+.market-chart-panel:hover,.rs-chart-card:hover{box-shadow:0 28px 90px rgba(0,0,0,.18)}
+.graphic-bars i{transform-origin:bottom;animation:bar-rise 1.5s var(--motion-ease) both;animation-play-state:paused}
+.graphic-bars.is-in i{animation-play-state:running}
+.graphic-bars i:nth-child(2){animation-delay:.08s}.graphic-bars i:nth-child(3){animation-delay:.16s}.graphic-bars i:nth-child(4){animation-delay:.24s}.graphic-bars i:nth-child(5){animation-delay:.32s}.graphic-bars i:nth-child(6){animation-delay:.4s}.graphic-bars i:nth-child(7){animation-delay:.48s}.graphic-bars i:nth-child(8){animation-delay:.56s}.graphic-bars i:nth-child(9){animation-delay:.64s}
+.heat-squares i{animation:square-pulse 2.8s ease-in-out infinite alternate!important}
+.coin-orb{filter:drop-shadow(0 12px 20px rgba(35,67,31,.12))}
+.rp-cursor{width:9px!important;height:9px!important;mix-blend-mode:difference;box-shadow:0 0 24px rgba(217,250,116,.55)}
+.rp-cursor.is-active{width:42px!important;height:42px!important}
+.rs-reveal{opacity:0;transform:translate3d(0,38px,0);filter:blur(4px);transition:opacity .95s var(--motion-ease),transform .95s var(--motion-ease),filter .95s var(--motion-ease)}
+.rs-reveal.is-visible{opacity:1;transform:none;filter:none}
+.rs-factor:nth-child(n){transition-delay:0ms}
+.rs-factor.is-visible{animation:factor-pop .75s var(--motion-ease) both}
+@keyframes hero-arrive{from{opacity:0;transform:translate3d(0,34px,0);filter:blur(8px)}to{opacity:1;transform:none;filter:blur(0)}}
+@keyframes hero-art-arrive{from{opacity:0;transform:translate3d(35px,20px,0) rotateY(-9deg) scale(.94);filter:blur(12px)}to{opacity:1;transform:none;filter:blur(0)}}
+@keyframes solar-glow{from{box-shadow:0 20px 55px rgba(81,110,56,.12)}to{box-shadow:0 35px 100px rgba(81,110,56,.32)}}
+@keyframes line-breathe{from{opacity:.25;transform:scaleY(.82) rotate(46deg)}to{opacity:.8;transform:scaleY(1.08) rotate(46deg)}}
+@keyframes star-turn{to{transform:rotate(180deg)}}
+@keyframes kicker-line{to{background-size:100% 1px}}
+@keyframes bar-rise{from{transform:scaleY(.08);opacity:.2}to{transform:scaleY(1);opacity:1}}
+@keyframes factor-pop{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
+@media(max-width:700px){.motion-reveal{transform:translate3d(0,28px,0);filter:blur(3px)}.hero-art{animation:hero-art-arrive 1.2s var(--motion-ease) both .1s}}
+@media(prefers-reduced-motion:reduce){.motion-reveal,.reveal{opacity:1!important;transform:none!important;filter:none!important;transition:none!important}.hero-copy .eyebrow,.hero-copy h1,.hero-copy .hero-bottom,.hero-art,.hero-meta{animation:none!important}.art-sun,.art-ring,.orbit,.floating-card,.hero-stamp,.ticker-track i,.coin-orb,.heat-squares i,.graphic-bars i{animation:none!important}}
