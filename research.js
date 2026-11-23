@@ -1,0 +1,11 @@
+(()=>{'use strict';
+const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+const symbols={RELIANCE:['NSE:RELIANCE','Reliance Industries','RELIANCE · NSE'],HDFCBANK:['NSE:HDFCBANK','HDFC Bank','HDFCBANK · NSE'],TCS:['NSE:TCS','Tata Consultancy Services','TCS · NSE'],INFY:['NSE:INFY','Infosys','INFY · NSE'],ICICIBANK:['NSE:ICICIBANK','ICICI Bank','ICICIBANK · NSE'],LT:['NSE:LT','Larsen & Toubro','LT · NSE'],ITC:['NSE:ITC','ITC Limited','ITC · NSE'],SBIN:['NSE:SBIN','State Bank of India','SBIN · NSE']};
+const chart=$('#researchChart'),select=$('#researchSelect'),name=$('#rsAssetName'),symbol=$('#rsAssetSymbol');
+function choose(key){const item=symbols[key]||symbols.RELIANCE;if(chart)chart.setAttribute('symbol',item[0]);if(name)name.textContent=item[1];if(symbol)symbol.textContent=item[2];if(select)select.value=key;$$('.rs-ticker').forEach(b=>b.classList.toggle('active',b.dataset.ticker===key));}
+select?.addEventListener('change',()=>choose(select.value));$$('.rs-ticker').forEach(b=>b.addEventListener('click',()=>choose(b.dataset.ticker)));choose('RELIANCE');
+const horizon=$('#researchHorizon'),checklist=$('#researchChecklist');
+const guides={long:['Revenue and profit growth across 5 years','Return on capital versus cost of capital','Debt, cash flow and promoter pledging','Valuation versus the company’s own history','Competitive advantage and governance'],medium:['Recent earnings trend and management guidance','Relative strength versus sector and index','Valuation versus peers and earnings quality','Upcoming results, policy or sector catalysts','Position size and maximum acceptable loss'],short:['Liquidity, spread and trading volume','Trend on daily and weekly timeframes','Volatility, event risk and gap risk','Predefined entry, invalidation and exit plan','Risk per trade before considering reward']};
+function renderChecklist(){if(!checklist)return;checklist.innerHTML=(guides[horizon?.value||'long']).map((x,i)=>'<div class="rs-signal"><div><strong>'+String(i+1).padStart(2,'0')+' / '+x+'</strong><small>Evidence to verify before forming a view</small></div><span>CHECK</span></div>').join('');}
+horizon?.addEventListener('change',renderChecklist);renderChecklist();
+})();
