@@ -30,20 +30,6 @@ $$('.term-tab').forEach(btn=>btn.addEventListener('click',()=>{
  symbol.textContent=item.symbol;title.textContent=item.title;desc.textContent=item.text;caution.textContent=item.caution;
 }));
 if(reduced)return;
-const palette=['#ff8d9f','#ffcb70','#a9f0dc','#9e9bff','#d7a5ff'];
-function burst(x,y){
- for(let i=0;i<14;i++){
-  const p=document.createElement('i'),angle=(Math.PI*2*i/14)+(Math.random()-.5)*.35,dist=38+Math.random()*58;
-  p.className='play-confetti';p.style.left=x+'px';p.style.top=y+'px';p.style.background=palette[i%palette.length];
-  p.style.setProperty('--dx',Math.cos(angle)*dist+'px');p.style.setProperty('--dy',Math.sin(angle)*dist+'px');p.style.setProperty('--turn',(Math.random()*540-270)+'deg');document.body.append(p);p.addEventListener('animationend',()=>p.remove(),{once:true});
- }
-}
-document.addEventListener('click',e=>{
- const btn=e.target.closest('button');if(!btn)return;
- const rect=btn.getBoundingClientRect(),x=e.clientX||rect.left+rect.width/2,y=e.clientY||rect.top+rect.height/2;
- const ripple=document.createElement('i');ripple.className='play-ripple';const size=Math.max(rect.width,rect.height);ripple.style.width=size/3+'px';ripple.style.height=size/3+'px';ripple.style.left=(x-rect.left-size/6)+'px';ripple.style.top=(y-rect.top-size/6)+'px';btn.style.position='relative';btn.style.overflow='hidden';btn.append(ripple);ripple.addEventListener('animationend',()=>ripple.remove(),{once:true});
- if(btn.classList.contains('button-lime')||btn.classList.contains('term-tab'))burst(x,y);
-});
 if(window.matchMedia('(pointer:fine)').matches){
  $$('.play-card').forEach(card=>{
   card.addEventListener('pointermove',e=>{const r=card.getBoundingClientRect(),dx=(e.clientX-r.left)/r.width-.5,dy=(e.clientY-r.top)/r.height-.5;card.style.setProperty('--play-rx',(-dy*3)+'deg');card.style.setProperty('--play-ry',(dx*3)+'deg');});
